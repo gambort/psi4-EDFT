@@ -1,5 +1,12 @@
+Scientific:
+
 * The code does not have deal very well with symmetries, which causes
   issues in some cases - working on it!
+
+* Double excitations should not be reported - the code is there but
+  the theory is not
+
+Technical:
 
 * Sometimes you need to delete the .clean files from your folder or
   run the code twice - this seems to be a psi4 bug
