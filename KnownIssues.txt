@@ -1,0 +1,12 @@
+* The code does not have deal very well with symmetries, which causes
+  issues in some cases - working on it!
+
+* Sometimes you need to delete the .clean files from your folder or
+  run the code twice - this seems to be a psi4 bug
+
+* Density fitting is not implemented for range-separation so
+  conventional hybrids become much faster after a certain point
+
+* The DFT xc energy calculations do not seem to be parallelised
+  which makes them a time-limiting step for smaller systems
+
