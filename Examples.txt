@@ -1,0 +1,50 @@
+###############################################################################################
+# Examples of use
+###############################################################################################
+
+# Example 1a
+# EDFT calculations of ethylene (from xyz fan) using PBE (default)
+# in def2-TZVP basis (default)
+
+DoubleEx.py -M ethylene.xyz
+
+# Example 2
+# Use a different functional (any valid GGA or hybrid GGA in psi4)
+# and basis (any valid with JKFit variant)
+
+DoubleEx.py -M ethylene.xyz --DFA wB97X --Basis def2-QZVP
+
+# Example 3
+# Evaluate PBE0 value for CN anion
+# NOTE: .mol files are a fill psi4 molecule string including
+# charge and degeneracy information and must terminate with
+# "symmetry c1" to avoid issues.
+
+DoubleEx.py --DFA PBE0 -M CNm.mol
+
+# Example 4
+# The code also has various inbuilt (but not all) atoms and diatoms
+
+DoubleEx.py -M H2  # H2 at default bond length
+DoubleEx.py -M LiH_1.5 # LiH at 1.5A
+DoubleEx.py -M CO_2.5  # CO at 2.5A
+
+# Example 5
+# Evaluate PBE0 value for EDFT@KS only for ethylene
+
+DoubleEx.py --SDOnly --DFA PBE0 -M ethylene.xyz
+
+# Example 6
+# Use the --UseDegen tag to avoid issues of near-degeneracy
+
+# Promote to the LUMO+1 instead LUMO
+DoubleEx.py -M ethylene.xyz --DkL 1 --UseDegen
+
+# Promote from the HOMO-1 instead HOMO
+DoubleEx.py -M ethylene.xyz --DkH 1 --UseDegen
+
+# Example 7
+# Choose a finer grid for calculations (might be necessary in tricky cases)
+
+DoubleEx.py -M ethylene.xyz --Fine
+
