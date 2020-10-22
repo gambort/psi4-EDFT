@@ -4,7 +4,7 @@ Scientific:
   issues in some cases - working on it!
 
 * Double excitations should not be reported - the code is there but
-  the theory is not
+  the theory is not necessarily correct
 
 Technical:
 
