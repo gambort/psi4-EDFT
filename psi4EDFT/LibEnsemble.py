@@ -40,9 +40,7 @@ class ERIHelper:
         self.mints = psi4.core.MintsHelper(self.basis)
         self.alpha = alpha
         self.omega = omega
-        self.eri = self.mints.ao_eri()
-        if not(self.omega is None):
-            self.eri_w = self.mints.ao_erf_eri(self.omega)
+        self.T_ao = self.mints.ao_kinetic()
 
         self.JKFit = JKFit
         if self.JKFit:
@@ -70,26 +68,29 @@ class ERIHelper:
             if not(self.omega is None):
                 # Get the density fit business
                 # Need to work out how to do density fit on rs part
-                if False:
-                    self.SAB_w = np.squeeze(
-                        self.mints.ao_erf_eri(self.omega,
-                                              self.zero_basis, self.aux_basis,
-                                              self.basis, self.basis))
-                    metric_w = \
-                             self.mints.ao_erf_eri(self.omega,
-                                                   self.zero_basis, self.aux_basis,
-                                                   self.zero_basis, self.aux_basis)
-                    metric_w.power(-0.5, 1e-14)
-                    metric_w = np.squeeze(metric_w)
-
-                    # ERI in auxilliary - for speed up
-                    self.ERIA_w = np.tensordot(metric_w, self.SAB_w, axes=[(1,),(0,)])
-            
-        
+                IntFac_Apq = psi4.core.IntegralFactory\
+                             (self.aux_basis, self.zero_basis, self.basis, self.basis)
+                IntFac_AB = psi4.core.IntegralFactory\
+                            (self.aux_basis, self.zero_basis, self.aux_basis, self.zero_basis)
+                self.SAB_w = np.squeeze(
+                    self.mints.ao_erf_eri(self.omega, IntFac_Apq) )
+                metric_w = \
+                           self.mints.ao_erf_eri(self.omega, IntFac_AB )
+                metric_w.power(-0.5, 1e-14)
+                metric_w = np.squeeze(metric_w)
+                
+                # ERI in auxilliary - for speed up
+                self.ERIA_w = np.tensordot(metric_w, self.SAB_w, axes=[(1,),(0,)])
+        else:                
+            self.eri = self.mints.ao_eri()
+            if not(self.omega is None):
+                self.eri_w = self.mints.ao_erf_eri(self.omega)
+  
     def JEH(self, D):
         if not(self.JKFit):
             J = np.tensordot(D, self.eri.np, 2)
         else:
+            # np.einsum('Apq,pq->A', self.ERIA, D)
             T = np.tensordot(self.ERIA, D, ((1,2),(0,1)))
             J = np.tensordot(self.ERIA, T, ((0,),(0,)))
 
@@ -98,6 +99,10 @@ class ERIHelper:
         return J, EH
 
     def KEx(self, D, alfactor=0.5, factor=None):
+        try:
+            D.shape
+        except:
+            return 0., 0.
         if factor is None:
             if self.alpha is None:
                 return 0.,0.
@@ -121,7 +126,9 @@ class ERIHelper:
             else:
                 T  = np.tensordot(self.ERIA, D, ((1,),(0,)))
                 K  = -alfactor*AK*np.tensordot(self.ERIA, T, ((0,1),(0,2)))
-                K += -alfactor*BK*np.tensordot(D, self.eri_w.np, ((0,1),(0,2)))
+                T  = np.tensordot(self.ERIA_w, D, ((1,),(0,)))
+                K += -alfactor*BK*np.tensordot(self.ERIA_w, T, ((0,1),(0,2)))
+                #K += -alfactor*BK*np.tensordot(D, self.eri_w.np, ((0,1),(0,2)))
                 
         Ex = 0.5*np.tensordot(K, D, 2)
 
@@ -142,6 +149,21 @@ class ERIHelper:
 
             return 0.5*np.dot(T1, T2)
 
+    def E_IJKL_w(self, CI,CJ,CK,CL):
+        if not(self.JKFit):
+            T = np.dot(self.eri_w.np, CL)
+            T = np.dot(T, CK)
+            T = np.dot(T, CJ)
+            T = np.dot(T, CI)
+            return 0.5*T
+        else:
+            T1 = np.dot(self.ERIA_w, CL)
+            T1 = np.dot(T1, CK)
+            T2 = np.dot(self.ERIA_w, CJ)
+            T2 = np.dot(T2, CI)
+
+            return 0.5*np.dot(T1, T2)
+
     def Ex_IJKL(self, CI,CJ,CK,CL):
         if self.alpha is None:
             return 0.
@@ -155,14 +177,15 @@ class ERIHelper:
             BK = (1. - self.alpha)
 
             Ex  = AK*self.E_IJKL(CI,CJ,CK,CL)
-            T = np.dot(CI, self.eri_w.np)
-            T = np.dot(CJ, T)
-            T = np.dot(CK, T)
-            T = np.dot(CL, T)
+            #T = np.dot(CI, self.eri_w.np)
+            #T = np.dot(CJ, T)
+            #T = np.dot(CK, T)
+            #T = np.dot(CL, T)
+
             #TOld = np.einsum("i,j,k,l,ijkl",
             #                 CI, CJ, CK, CL, self.eri_w.np,
             #                 optimize=True)
-            Ex += BK*0.5*T
+            Ex += BK*0.5*self.E_IJKL_w(CI,CJ,CK,CL)
             return Ex
 
 # Main ensemble class
@@ -178,8 +201,9 @@ class EnsembleHelper:
             self.DFA = None
             self.VPot = None
 
-        SRI = wfn.S() # Overlap integral
-        self.S = SRI.to_array(dense=True)
+        #SRI = wfn.S() # Overlap integral
+        self.S = wfn.S().to_array(dense=True)
+        SRI = psi4.core.Matrix.from_array(self.S)
         SRI.power(-0.5, 1e-14)
         self.SRI = SRI.to_array(dense=True)
         
@@ -268,6 +292,7 @@ class EnsembleHelper:
         TK.EndTimer("ExcDFA")
 
         self.Eob = np.tensordot(self.H_ao, D)
+        self.Ts = np.tensordot(self.ERIHelp.T_ao, D)
         if not(self.VPot is None):
             self.Exc = self.VPot.quadrature_values()["FUNCTIONAL"]
             # TEMP
@@ -300,6 +325,7 @@ class EnsembleHelper:
         if not(return_F):
             return self.E, {'Enn':self.Enn,
                             'Eob':self.Eob,
+                            'Ts':self.Ts,
                             'EH':self.EH,
                             'Exc':self.Exc,
                             'ExHF':self.ExHF, }
