@@ -54,11 +54,11 @@ class ERIHelper:
             # Get the density fit business
             # Density fit stuff
             self.SAB = np.squeeze(
-                self.mints.ao_eri(self.zero_basis, self.aux_basis,
+                self.mints.ao_eri(self.aux_basis, self.zero_basis, 
                                   self.basis, self.basis))
             metric = \
-                     self.mints.ao_eri(self.zero_basis, self.aux_basis,
-                                       self.zero_basis, self.aux_basis)
+                     self.mints.ao_eri(self.aux_basis, self.zero_basis, 
+                                       self.aux_basis, self.zero_basis)
             metric.power(-0.5, 1e-14)
             metric = np.squeeze(metric)
             
@@ -70,8 +70,8 @@ class ERIHelper:
                 # Need to work out how to do density fit on rs part
                 IntFac_Apq = psi4.core.IntegralFactory\
                              (self.aux_basis, self.zero_basis, self.basis, self.basis)
-                IntFac_AB = psi4.core.IntegralFactory\
-                            (self.aux_basis, self.zero_basis, self.aux_basis, self.zero_basis)
+                IntFac_AB  = psi4.core.IntegralFactory\
+                             (self.aux_basis, self.zero_basis, self.aux_basis, self.zero_basis)
                 self.SAB_w = np.squeeze(
                     self.mints.ao_erf_eri(self.omega, IntFac_Apq) )
                 metric_w = \
